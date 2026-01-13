@@ -1,1 +1,0 @@
-# mydevops_tasks
