@@ -1,4 +1,5 @@
-19/1/2026
+19/1/2026 
+TASK:7 Create a Bash shell script that automates basic system monitoring and cloud-style operations, similar to what a DevOps or Cloud Engineer would do on a Linux server. Requirements 1️⃣ System Information The script should display: Hostname Current date and time Uptime Logged-in users 2️⃣ Resource Monitoring Check and display: CPU usage Memory usage Disk usage (alert if any partition exceeds 80%) 3️⃣ Process Management List the top 5 processes consuming the most CPU If a process is consuming more than 70% CPU, log it to a file called high_cpu_process.log 4️⃣ Log Management Create a directory called logs/ if it doesn’t exist Save all script output into logs/system_report_<date>.log Rotate logs older than 7 days .
 # 🖥️ Linux System Monitoring Automation (TASK-7)
 
 ## 📌 Overview
