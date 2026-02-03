@@ -1,0 +1,102 @@
+name: CI-CD Todo App (GitHub Actions)
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  DOCKER_HUB_USER: sonu171
+  IMAGE_BASE: todo-app
+  IMAGE_TAG: build-${{ github.run_number }}
+  LOCAL_IMAGE: todo-app:build-${{ github.run_number }}
+  REMOTE_IMAGE: sonu171/todo-app:build-${{ github.run_number }}
+  PORT: 3000
+  NAMESPACE: todons
+
+jobs:
+  build-scan-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # ---------------- Checkout ----------------
+    - name: Checkout source code
+      uses: actions/checkout@v4
+
+    # ---------------- Node setup (optional but recommended) ----------------
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+
+    # ---------------- SonarQube Scan ----------------
+    - name: SonarQube Analysis
+      uses: sonarsource/sonarqube-scan-action@v2
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+    # ---------------- Quality Gate ----------------
+    - name: SonarQube Quality Gate
+      uses: sonarsource/sonarqube-quality-gate-action@v1
+      timeout-minutes: 2
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    # ---------------- Docker Build ----------------
+    - name: Docker Build
+      run: |
+        docker build -t $LOCAL_IMAGE .
+
+    # ---------------- Docker Tag ----------------
+    - name: Tag Docker Image
+      run: |
+        docker tag $LOCAL_IMAGE $REMOTE_IMAGE
+
+    # ---------------- Trivy Scan ----------------
+    - name: Trivy Vulnerability Scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.REMOTE_IMAGE }}
+        format: table
+        exit-code: 0
+        severity: CRITICAL,HIGH
+
+    # ---------------- Docker Login ----------------
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+    # ---------------- Docker Push ----------------
+    - name: Push Docker Image
+      run: |
+        docker push $REMOTE_IMAGE
+
+    # ---------------- AWS Credentials ----------------
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    # ---------------- EKS Kubeconfig ----------------
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --name my-cluster --region us-east-1
+
+    # ---------------- Helm Deploy ----------------
+    - name: Deploy to EKS using Helm
+      run: |
+        helm upgrade --install todo-release ./helm \
+          --namespace $NAMESPACE \
+          --create-namespace \
+          --set image.repository=${{ env.DOCKER_HUB_USER }}/${{ env.IMAGE_BASE }} \
+          --set image.tag=${{ env.IMAGE_TAG }} \
+          --set service.type=LoadBalancer
+
+        echo "Waiting for service..."
+        sleep 60
+        kubectl get svc -n $NAMESPACE
