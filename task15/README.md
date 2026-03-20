@@ -1,136 +1,210 @@
 
-# 🚀 To-Do CI/CD End-to-End Project
+# 🚀 Host a Static Website on AWS (S3 + CloudFront)
 
-A full-stack **To-Do List application** built to demonstrate a complete **DevOps CI/CD pipeline** with containerization and Kubernetes deployment.
+Deploy a fast, secure, and scalable **static website** using AWS services like **Amazon S3** and **CloudFront CDN**.
 
 ---
 
 ## 📌 Project Overview
 
-This project showcases how to build, containerize, and deploy a full-stack application using modern DevOps practices.
+This project demonstrates how to host a static website in a **serverless architecture** using:
 
-### 🔧 Tech Stack
-
-* **Frontend**: HTML, CSS, JavaScript
-* **Backend**: Node.js (Express.js)
-* **Database**: SQLite
-* **Containerization**: Docker
-* **Orchestration**: Kubernetes
-* **CI/CD**: GitHub Actions / Jenkins (depending on your setup)
+* **Amazon S3** – Stores static website files
+* **Amazon CloudFront** – Delivers content globally with low latency
+* **Amazon Route 53 (Optional)** – Configures custom domain
 
 ---
 
-## 📁 Project Structure
+## 🏗️ Architecture
 
 ```
-todo_cicd_end-end_project/
-│
-├── public/               # Frontend files (index.html, CSS, JS)
-├── server/               # Backend (Node.js + Express)
-├── database/             # SQLite DB file
-├── Dockerfile            # Docker configuration
-├── docker-compose.yml    # Multi-container setup (optional)
-├── k8s/                  # Kubernetes manifests
-├── .github/workflows/    # CI/CD pipeline (GitHub Actions)
-└── README.md             # Project documentation
+User → CloudFront (CDN) → S3 Bucket → Static Website Files
 ```
 
 ---
 
-## ⚙️ Features
+## ✅ Prerequisites
 
-* Add, update, delete tasks
-* Persistent storage using SQLite
-* REST API integration
-* Dockerized application
-* CI/CD pipeline automation
-* Kubernetes deployment
+Before you begin, ensure you have:
 
----
+* AWS Account
+* IAM user with S3 & CloudFront permissions
+* AWS CLI installed and configured
+* GitHub repository cloned
 
-## 🐳 Docker Setup
+👉 Repo: [https://github.com/vineethsankre/AWS_Codepipeline_S3_CloudFront.git](https://github.com/vineethsankre/AWS_Codepipeline_S3_CloudFront.git)
 
-### Build Docker Image
+### Install AWS CLI
 
 ```bash
-docker build -t todo-app .
+pip install awscli
 ```
 
-### Run Container
+### Configure AWS Credentials
 
 ```bash
-docker run -d -p 3000:3000 todo-app
+aws configure
 ```
 
 ---
 
-## ☸️ Kubernetes Deployment
+## 📂 Project Structure
 
-### Apply Kubernetes Manifests
-
-```bash
-kubectl apply -f k8s/
+```
+website/
+├── index.html
+├── error.html
+├── css/
+├── js/
+└── images/
 ```
 
-### Check Pods
+> For React apps, generate build files:
 
 ```bash
-kubectl get pods
+npm run build
 ```
 
 ---
 
-## 🔄 CI/CD Pipeline
+## ⚙️ Step-by-Step Setup
 
-The pipeline automates:
+### 1️⃣ Create an S3 Bucket
 
-1. Code push to repository
-2. Build Docker image
-3. Run tests (if configured)
-4. Push image to Docker Hub / Registry
-5. Deploy to Kubernetes
+* Navigate to **AWS Console → S3**
+* Click **Create bucket**
 
----
+**Configuration:**
 
-## 📦 API Endpoints
-
-| Method | Endpoint   | Description   |
-| ------ | ---------- | ------------- |
-| GET    | /tasks     | Get all tasks |
-| POST   | /tasks     | Add new task  |
-| PUT    | /tasks/:id | Update task   |
-| DELETE | /tasks/:id | Delete task   |
+* Bucket Name: `my-static-site-bucket`
+* Region: Your preferred region
+* Disable **Block all public access**
 
 ---
 
-## 🚀 How to Run Locally
+### 2️⃣ Enable Static Website Hosting
 
-### Install Dependencies
+* Go to **Bucket → Properties**
+* Enable **Static website hosting**
+
+**Set:**
+
+* Index document: `index.html`
+* Error document: `error.html`
+
+---
+
+### 3️⃣ Configure Bucket Policy
+
+Navigate to **Permissions → Bucket Policy** and add:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PublicRead",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": ["s3:GetObject"],
+      "Resource": "arn:aws:s3:::my-static-site-bucket/*"
+    }
+  ]
+}
+```
+
+> 🔁 Replace `my-static-site-bucket` with your actual bucket name.
+
+---
+
+### 4️⃣ Upload Website Files
+
+Upload using AWS Console or CLI:
 
 ```bash
-npm install
-```
-
-### Start Server
-
-```bash
-node server.js
-```
-
-### Open in Browser
-
-```
-http://localhost:3000
+aws s3 sync ./website s3://my-static-site-bucket
 ```
 
 ---
 
-## 📈 Future Enhancements
+### 5️⃣ Create CloudFront Distribution
 
-* Add authentication (JWT)
-* Use cloud database (RDS / MongoDB Atlas)
-* Implement monitoring (Prometheus + Grafana)
-* Add Helm charts for Kubernetes
+* Go to **CloudFront → Create Distribution**
+
+**Settings:**
+
+* Origin: Select S3 bucket
+* Viewer Protocol Policy: Redirect HTTP → HTTPS
+* Default Root Object: `index.html`
+
+⏳ Wait for deployment to complete.
+
+---
+
+### 6️⃣ Access Your Website
+
+CloudFront will generate a URL like:
+
+```
+https://dxxxxx.cloudfront.net
+```
+
+Open it in your browser 🎉
+
+---
+
+### 7️⃣ (Optional) Configure Custom Domain
+
+Using **Route 53**:
+
+1. Create a Hosted Zone
+2. Create an **A Record**
+3. Enable **Alias → CloudFront Distribution**
+
+Example:
+
+```
+www.example.com → CloudFront
+```
+
+🔐 Add SSL certificate via **AWS Certificate Manager (ACM)**
+
+---
+
+## 🔄 Cache Invalidation
+
+After updating your site, clear cache:
+
+```bash
+aws cloudfront create-invalidation \
+--distribution-id DISTRIBUTION_ID \
+--paths "/*"
+```
+
+---
+
+## 🎯 Expected Outcome
+
+Your website will be live on:
+
+* ✅ CloudFront URL
+* ✅ Custom domain (if configured)
+
+### Key Benefits
+
+* ⚡ Fast global delivery (CDN)
+* 🔒 HTTPS enabled
+* 📈 Highly scalable & serverless
+* 💰 Cost-effective hosting
+
+---
+
+## 🧹 Cleanup
+
+To avoid unnecessary charges:
+
+1. Delete CloudFront Distribution
+2. Delete S3 Bucket
 
 ---
 
@@ -138,7 +212,3 @@ http://localhost:3000
 
 **Shashank**
 DevOps Engineer | Cloud Enthusiast
-
----
-
-
